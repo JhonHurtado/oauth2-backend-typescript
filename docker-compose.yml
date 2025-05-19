@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # MongoDB service
+  mongodb:
+    image: mongo:7.0
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: oauth2_db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - oauth2_network
+
+  # OAuth2 Backend service
+  oauth2_backend:
+    build: .
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: mongodb://admin:password@mongodb:27017/oauth2_db?authSource=admin
+      PORT: 3000
+      JWT_SECRET: your-super-secret-jwt-key-here-change-in-production
+      SESSION_SECRET: your-session-secret-here-change-in-production
+      CLIENT_ID: test-client-id
+      CLIENT_SECRET: test-client-secret
+      CLIENT_REDIRECT_URI: http://localhost:3001/auth/callback
+      CORS_ORIGIN: http://localhost:3001
+      RATE_LIMIT_WINDOW_MS: 15000
+      RATE_LIMIT_MAX_REQUESTS: 100
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mongodb
+    networks:
+      - oauth2_network
+    volumes:
+      - ./logs:/app/logs
+
+volumes:
+  mongodb_data:
+
+networks:
+  oauth2_network:
+    driver: bridge
